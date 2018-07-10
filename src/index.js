@@ -32,16 +32,29 @@ class RemoteChecklist extends React.Component {
     }
 
     componentDidMount() {
-        // window.addEventListener('scroll', this.handleScroll);
         this.fetchData();
     }
 
-    componentWillUnmount() {
-        // window.removeEventListener('scroll', this.handleScroll);
-    }
-
-    handleScroll() {
-        console.log("scroll");
+    handleScroll(event) {
+        const padding = 16;
+        const margin = 24;
+        let ul = event.target;
+        let offset = (ul.scrollTop + ul.clientHeight) - (padding+margin);
+        let height = ul.offsetHeight;
+      
+        console.log('offset = ' + offset);
+        console.log('height = ' + height);
+      
+    
+        if (offset >= height && this.state.loading == false) {
+            console.log('At the bottom');
+            let component = this;
+            this.setState({
+                loading: true,
+            }, function() {
+                component.fetchData();
+            })
+        }
     }
 
     fetchData() {
@@ -59,6 +72,7 @@ class RemoteChecklist extends React.Component {
             response => {
                 component.setState({
                     data: response.data,
+                    nextUrlCall: 'http://localhost:5000/api/permissions/LookupPermissions?skip=10&limit=10',
                     loading: false,
                 })
             }
@@ -82,9 +96,9 @@ class RemoteChecklist extends React.Component {
                     <ul 
                         className="rcl-list-control" 
                         id="rcl-list-control-for-permissions"
-                        onScroll={this.handleScroll}
+                        onScroll={(e) => this.handleScroll(e)}
                     >
-                        {loading}
+                        {loader}
                         {this.state.data != null &&
                             this.state.data.map((item, index) => 
                                 <ListItem 
