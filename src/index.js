@@ -48,6 +48,9 @@ class RemoteChecklist extends React.Component {
         if (this.state.data.length != prevState.data.length || this.state.stoppedFetch != prevState.stoppedFetch) {
             this.listRef.current.scrollTop = this.state.lastScroll;
         }
+        else if (this.state.dataSelected != prevState.dataSelected) {
+            this.props.onChange(this.state.dataSelected);
+        }
     }
 
     handleScroll(event) {
@@ -121,7 +124,7 @@ class RemoteChecklist extends React.Component {
 
     render() {
         const loading = this.state.loading;
-        let loader = loading == true ? <img src="/src/spinner.svg" alt="Loading..." style={{width: '100%', height: '100%'}}/> : null;
+        let loader = loading == true ? <img src="../dist/spinner.svg" alt="Loading..." style={{width: '100%', height: '100%'}}/> : null;
         return(
             <div className="rcl-container-box">
                 <div className="rcl-container-available">
@@ -163,15 +166,21 @@ class RemoteChecklist extends React.Component {
     }
 }
 
+function defaultOnChange(event) {
+    console.log(event.length);
+}
+
 RemoteChecklist.propTypes = {
     label: PropTypes.string,
     value: PropTypes.string,
     inputValue: PropTypes.array,
     url: PropTypes.string.isRequired,
+    onChange: PropTypes.func,
 }
 RemoteChecklist.defaultProps = {
     label: "description",
     value: "value",
+    onChange: defaultOnChange,
     inputValue: [],
 }
 

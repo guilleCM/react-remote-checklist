@@ -27,6 +27,7 @@
     box-sizing: border-box;
 }
 .rcl-list-control {
+    width: 100%;
     overflow-y: scroll;
     line-height: 1.42857;
     font-family: inherit;
