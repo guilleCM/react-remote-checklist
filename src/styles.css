@@ -51,3 +51,13 @@
 .rcl-item-selected {
     background-color: #e4e4e4;
 }
+.rcl-li-no-fetch {
+    color: #004085;
+    background-color: #cce5ff;
+    border-color: #b8daff;
+    border: 1px solid transparent;
+    border-radius: .25rem;
+    padding: 5px;
+    margin: 5px;
+    text-align: -webkit-center;
+}

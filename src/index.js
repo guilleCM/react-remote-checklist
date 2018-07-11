@@ -124,7 +124,7 @@ class RemoteChecklist extends React.Component {
 
     render() {
         const loading = this.state.loading;
-        let loader = loading == true ? <img src="../dist/spinner.svg" alt="Loading..." style={{width: '100%', height: '100%'}}/> : null;
+        let loader = loading == true ? <img src="./assets/spinner.svg" alt="Loading..." style={{width: '100%', height: '100%'}}/> : null;
         return(
             <div className="rcl-container-box">
                 <div className="rcl-container-available">
@@ -159,6 +159,9 @@ class RemoteChecklist extends React.Component {
                                     return null
                             })
                         }
+                        {this.state.stoppedFetch && !this.state.loading &&
+                            <li className="rcl-li-no-fetch"><span>{this.props.noDataMessage}</span></li>
+                        }
                     </ul>
                 </div>
             </div>
@@ -176,12 +179,14 @@ RemoteChecklist.propTypes = {
     inputValue: PropTypes.array,
     url: PropTypes.string.isRequired,
     onChange: PropTypes.func,
+    noDataMessage: PropTypes.string,
 }
 RemoteChecklist.defaultProps = {
     label: "description",
     value: "value",
     onChange: defaultOnChange,
     inputValue: [],
+    noDataMessage: "No more data to fetch!",
 }
 
 export default RemoteChecklist;
