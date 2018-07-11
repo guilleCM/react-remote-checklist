@@ -8,10 +8,12 @@ class ListItem extends React.Component {
         return(
             <li className="rcl-list-control-item" key={"rcl-cb-"+this.props.index}>
                 <input 
-                    type="checkbox" 
+                    type="checkbox"
+                    checked={this.props.checked}
                     key={"rcl-cb-in-"+this.props.index}
                     id={"rcl-cb-"+this.props.index} 
                     value={this.props.value}
+                    onChange={(e) => this.props.handleCheck(e)}
                 />
                 <label htmlFor={"rcl-cb-"+this.props.index}>{this.props.label}</label>
             </li>            
@@ -25,35 +27,53 @@ class RemoteChecklist extends React.Component {
         super(props);
         this.state = {
             error: null,
-            data: null,
+            data: [],
             nextUrlCall: null,
             loading: true,
+            dataSelected: props.inputValue.map(item => item.value),
+            initData: props.inputValue.map(item => item.value),
+            lastScroll: 0,
         }
+        this.listRef = React.createRef();
+        this.handleCheck = this.handleCheck.bind(this);
     }
 
     componentDidMount() {
         this.fetchData();
     }
 
+    componentDidUpdate(prevProps, prevState, snapshot) {
+        if (this.state.data.length != prevState.data.length) {
+            this.listRef.current.scrollTop = this.state.lastScroll;
+        }
+    }
+
     handleScroll(event) {
-        const padding = 16;
-        const margin = 24;
-        let ul = event.target;
-        let offset = (ul.scrollTop + ul.clientHeight) - (padding+margin);
-        let height = ul.offsetHeight;
-      
-        console.log('offset = ' + offset);
-        console.log('height = ' + height);
-      
-    
-        if (offset >= height && this.state.loading == false) {
-            console.log('At the bottom');
-            let component = this;
-            this.setState({
-                loading: true,
-            }, function() {
+        let elem = this.listRef.current;
+        let component = this;
+        if (elem.scrollHeight - elem.scrollTop == elem.clientHeight && !this.state.loading) {
+            this.lastScroll = elem.scrollTop;
+            this.setState({loading: true, lastScroll: elem.scrollTop}, () => {
                 component.fetchData();
             })
+        }
+    }
+
+    handleCheck(event) {
+        let value = event.target.value
+        let newDataSelected = this.state.dataSelected.slice();
+        if (newDataSelected.includes(value)) {
+            let index = newDataSelected.indexOf(value);
+            newDataSelected.splice(index, 1);
+            this.setState({
+                dataSelected: newDataSelected
+            });
+        }
+        else {
+            newDataSelected.push(value);
+            this.setState({
+                dataSelected: newDataSelected
+            });
         }
     }
 
@@ -71,7 +91,7 @@ class RemoteChecklist extends React.Component {
         ).then(
             response => {
                 component.setState({
-                    data: response.data,
+                    data: component.state.data.concat(response.data),
                     nextUrlCall: 'http://localhost:5000/api/permissions/LookupPermissions?skip=10&limit=10',
                     loading: false,
                 })
@@ -89,24 +109,40 @@ class RemoteChecklist extends React.Component {
 
     render() {
         const loading = this.state.loading;
-        let loader = loading == true ? <p>Loading</p> : null;
+        let loader = loading == true ? <img src="/src/spinner.svg" alt="Loading..." style={{width: '100%', height: '100%'}}/> : null;
         return(
             <div className="rcl-container-box">
                 <div className="rcl-container-available">
                     <ul 
                         className="rcl-list-control" 
-                        id="rcl-list-control-for-permissions"
+                        ref={this.listRef}
                         onScroll={(e) => this.handleScroll(e)}
                     >
                         {loader}
-                        {this.state.data != null &&
-                            this.state.data.map((item, index) => 
-                                <ListItem 
-                                    key={"rcl-li-"+index} 
-                                    index={index} 
-                                    value={item.value} 
+                        {!this.state.loading &&
+                            this.props.inputValue.map((item, index) => 
+                                <ListItem
+                                    handleCheck={this.handleCheck}
+                                    checked={this.state.dataSelected.includes(item.value)}
+                                    key={"rcl-li-sel-"+index}
+                                    index={"sel-"+index}
+                                    value={item.value}
                                     label={item.description}/>
                             )
+                        }
+                        {this.state.data.length > 0 && !this.state.loading &&
+                            this.state.data.map((item, index) => {
+                                if (!this.state.initData.includes(item.value))
+                                    return <ListItem
+                                        handleCheck={this.handleCheck}
+                                        checked={this.state.dataSelected.includes(item.value)} 
+                                        key={"rcl-li-"+index} 
+                                        index={index} 
+                                        value={item.value} 
+                                        label={item.description}/>
+                                else
+                                    return null
+                            })
                         }
                     </ul>
                 </div>
@@ -118,12 +154,13 @@ class RemoteChecklist extends React.Component {
 RemoteChecklist.propTypes = {
     label: PropTypes.string,
     value: PropTypes.string,
-    // icon: PropTypes.string,
+    inputValue: PropTypes.array,
     url: PropTypes.string.isRequired,
 }
 RemoteChecklist.defaultProps = {
     label: "description",
     value: "value",
+    inputValue: [],
 }
 
 export default RemoteChecklist;
