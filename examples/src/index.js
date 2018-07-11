@@ -5,23 +5,29 @@ import RemoteChecklist from '../../src';
 const App = () => (
     <RemoteChecklist 
         url="http://127.0.0.1:5000/api/permissions/LookupPermissions"
+        limit={10}
         label="description"
         value="value"
         inputValue={
             [
                 {
-                    "value": "5b3f3f39416adf1ba81ab5ca",
-                    "description": "Can view Setup / AppSetting in sidebar"
+                    "value": "5b3f3f36416adf1ba81ab5c0",
+                    "description": "Can view Admin in sidebar"
                 },
                 {
-                    "value": "5b3f3f3a416adf1ba81ab5cb",
-                    "description": "Can view Admin / AccessControl in sidebar"
+                    "value": "5b3f3f37416adf1ba81ab5c1",
+                    "description": "Can view Setup in sidebar"
                 },
                 {
-                    "value": "5b3f3f3a416adf1ba81ab5cc",
-                    "description": "Can view Admin / ChannelRateLimit in sidebar"
+                    "value": "5b3f3f37416adf1ba81ab5c2",
+                    "description": "Can view Masters in sidebar"
                 },
+                {
+                    "value": "5b3f3f37416adf1ba81ab5c3",
+                    "description": "Can view Dingus in sidebar"
+                }
             ]
+            
         }
     />
 );

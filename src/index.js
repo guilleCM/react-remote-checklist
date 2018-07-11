@@ -6,7 +6,7 @@ import './styles.css';
 class ListItem extends React.Component {
     render() {
         return(
-            <li className="rcl-list-control-item" key={"rcl-cb-"+this.props.index}>
+            <li className={this.props.checked ? "rcl-list-control-item rcl-item-selected" : "rcl-list-control-item"} key={"rcl-cb-"+this.props.index}>
                 <input 
                     type="checkbox"
                     checked={this.props.checked}
@@ -33,6 +33,8 @@ class RemoteChecklist extends React.Component {
             dataSelected: props.inputValue.map(item => item.value),
             initData: props.inputValue.map(item => item.value),
             lastScroll: 0,
+            skip: 0,
+            stoppedFetch: false,
         }
         this.listRef = React.createRef();
         this.handleCheck = this.handleCheck.bind(this);
@@ -43,7 +45,7 @@ class RemoteChecklist extends React.Component {
     }
 
     componentDidUpdate(prevProps, prevState, snapshot) {
-        if (this.state.data.length != prevState.data.length) {
+        if (this.state.data.length != prevState.data.length || this.state.stoppedFetch != prevState.stoppedFetch) {
             this.listRef.current.scrollTop = this.state.lastScroll;
         }
     }
@@ -51,7 +53,7 @@ class RemoteChecklist extends React.Component {
     handleScroll(event) {
         let elem = this.listRef.current;
         let component = this;
-        if (elem.scrollHeight - elem.scrollTop == elem.clientHeight && !this.state.loading) {
+        if (elem.scrollHeight - elem.scrollTop == elem.clientHeight && !this.state.loading && !this.state.stoppedFetch) {
             this.lastScroll = elem.scrollTop;
             this.setState({loading: true, lastScroll: elem.scrollTop}, () => {
                 component.fetchData();
@@ -90,11 +92,21 @@ class RemoteChecklist extends React.Component {
             }
         ).then(
             response => {
-                component.setState({
-                    data: component.state.data.concat(response.data),
-                    nextUrlCall: 'http://localhost:5000/api/permissions/LookupPermissions?skip=10&limit=10',
-                    loading: false,
-                })
+                let nextSkip = component.state.skip + component.props.limit;
+                if (response.data.length == 0) {
+                    component.setState({
+                        stoppedFetch: true,
+                        loading: false,
+                    })
+                }
+                else {
+                    component.setState({
+                        data: component.state.data.concat(response.data),
+                        nextUrlCall: component.props.url+'?skip='+nextSkip+'&limit='+component.props.limit,
+                        skip: nextSkip,
+                        loading: false,
+                    })
+                }
             }
         ).catch(
             error => {
