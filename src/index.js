@@ -7,11 +7,11 @@ import loaderImg from './images/spinner.svg';
 class ListItem extends React.Component {
     render() {
         return(
-            <li className={this.props.checked ? "rcl-list-control-item rcl-item-selected" : "rcl-list-control-item"} key={"rcl-cb-"+this.props.index}>
+            <li className={this.props.checked ? "rcl-list-control-item rcl-item-selected" : "rcl-list-control-item"} key={this.props.index+"-lli"}>
                 <input 
                     type="checkbox"
                     checked={this.props.checked}
-                    key={"rcl-cb-in-"+this.props.index}
+                    key={this.props.index+"-lli-inp"}
                     id={"rcl-cb-"+this.props.index} 
                     value={this.props.value}
                     data-label={this.props.label}
@@ -29,12 +29,13 @@ class RemoteChecklist extends React.Component {
         super(props);
         this.state = {
             error: null,
+            initData: props.inputValue,
+            initDataValues: props.inputValue.map(item => item.value),
+            dataSelected: props.inputValue,
             data: [],
+            valuesSelected: props.inputValue.map(item => item.value),
             nextUrlCall: null,
             loading: true,
-            valuesSelected: props.inputValue.map(item => item.value),
-            dataSelected: props.inputValue,
-            initData: props.inputValue.map(item => item.value),
             lastScroll: 0,
             skip: 0,
             stoppedFetch: false,
@@ -71,6 +72,7 @@ class RemoteChecklist extends React.Component {
     }
 
     handleCheck(event) {
+        console.log(event.target.dataset.label + " : " + event.target.value)
         let value = event.target.value
         let newValuesSelected = this.state.valuesSelected.slice();
         let newDataSelected = this.state.dataSelected.slice();
@@ -100,18 +102,27 @@ class RemoteChecklist extends React.Component {
         clearTimeout(this.delayTimer);
         let component = this;
         let filter = event.target.value;
+        let elem = this.listRef.current;
+        elem.scrollTop = 0;
+        this.lastScroll = 0;
         this.delayTimer = setTimeout(function () {
-            component.fetchData(filter);
+            component.setState({loading: true, lastScroll: 0}, () => {
+                component.fetchData(filter);
+            })
         }, 350);
     }
 
-    fetchData(filter="") {
+    fetchData(filter=null) {
         let component = this;
-        let url = this.state.nextUrlCall == null || filter != "" ? this.props.url : this.state.nextUrlCall;
+        let url = this.state.nextUrlCall == null || filter != null ? this.props.url : this.state.nextUrlCall;
         let dataPost = {};
         let skip;
         let prevData;
-        if (filter != "") {
+        let newInitData;
+        let newInitDataValues;
+        if (filter != null) {
+            newInitData = this.state.dataSelected;
+            newInitDataValues = this.state.valuesSelected;
             skip = 0;
             prevData = [];
             dataPost['filters'] = [
@@ -124,7 +135,15 @@ class RemoteChecklist extends React.Component {
         } else {
             skip = this.state.skip;
             prevData = this.state.data;
-            dataPost = this.state.filterValue != "" ? [{'field': 'q', 'operator': 3, 'value': this.state.filterValue}] : {};
+            if (this.state.filterValue != "") {
+                dataPost['filters'] = [
+                    {
+                        'field': 'q',
+                        'operator': 3,
+                        'value': this.state.filterValue
+                    }
+                ]
+            }
         }
         axios.post(
             url,
@@ -137,7 +156,7 @@ class RemoteChecklist extends React.Component {
             response => {
                 let nextSkip = skip + component.props.limit;
                 let filterValue = "";
-                if (filter != "") {
+                if (filter != null) {
                     filterValue = filter;
                 }
                 else if (component.state.filterValue != "") {
@@ -152,14 +171,29 @@ class RemoteChecklist extends React.Component {
                     })
                 }
                 else {
-                    component.setState({
-                        filterValue: filterValue,
-                        data: prevData.concat(response.data),
-                        nextUrlCall: component.props.url+'?skip='+nextSkip+'&limit='+component.props.limit,
-                        skip: nextSkip,
-                        stoppedFetch: false,
-                        loading: false,
-                    })
+                    if (filter == null) {
+                        component.setState({
+                            filterValue: filterValue,
+                            data: prevData.concat(response.data),
+                            nextUrlCall: component.props.url+'?skip='+nextSkip+'&limit='+component.props.limit,
+                            skip: nextSkip,
+                            stoppedFetch: false,
+                            loading: false,
+                        })
+                    }
+                    else {
+                        component.setState({
+                            filterValue: filterValue,
+                            initData: newInitData,
+                            initDataValues: newInitDataValues,
+                            newValuesSelected: newInitDataValues,
+                            data: prevData.concat(response.data),
+                            nextUrlCall: component.props.url+'?skip='+nextSkip+'&limit='+component.props.limit,
+                            skip: nextSkip,
+                            stoppedFetch: false,
+                            loading: false,
+                        }) 
+                    }
                 }
             }
         ).catch(
@@ -186,29 +220,34 @@ class RemoteChecklist extends React.Component {
                         onScroll={(e) => this.handleScroll(e)}
                     >
                         {loader}
-                        {!this.state.loading &&
-                            this.props.inputValue.map((item, index) => 
+
+                        {!this.state.loading && 
+                            this.state.initData.map((item, index) => 
                                 <ListItem
                                     handleCheck={this.handleCheck}
                                     checked={this.state.valuesSelected.includes(item.value)}
-                                    key={"rcl-li-sel-"+index}
-                                    index={"sel-"+index}
+                                    key={"rcl-li-init"+index}
+                                    index={"rcl-li-init"+index}
                                     value={item.value}
-                                    label={item.description}/>
+                                    label={item.description}
+                                />
                             )
                         }
-                        {this.state.data.length > 0 && !this.state.loading &&
+
+                        {!this.state.loading &&
                             this.state.data.map((item, index) => {
-                                if (!this.state.initData.includes(item.value))
+                                if (!this.state.initDataValues.includes(item.value))
                                     return <ListItem
                                         handleCheck={this.handleCheck}
-                                        checked={this.state.valuesSelected.includes(item.value)} 
-                                        key={"rcl-li-"+index} 
-                                        index={index} 
-                                        value={item.value} 
-                                        label={item.description}/>
+                                        checked={this.state.valuesSelected.includes(item.value)}
+                                        key={"rcl-li-"+index}
+                                        index={"rcl-li-"+index}
+                                        value={item.value}
+                                        label={item.description}
+                                    />
                             })
                         }
+
                         {this.state.stoppedFetch && !this.state.loading &&
                             <li className="rcl-li-no-fetch"><span>{this.props.noDataMessage}</span></li>
                         }
