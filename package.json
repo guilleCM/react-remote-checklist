@@ -1,6 +1,6 @@
 {
   "name": "react-remote-checklist",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Component to handle a checkbox of remote items based list",
   "main": "dist/index.js",
   "scripts": {

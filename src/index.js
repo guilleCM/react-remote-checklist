@@ -14,6 +14,7 @@ class ListItem extends React.Component {
                     key={"rcl-cb-in-"+this.props.index}
                     id={"rcl-cb-"+this.props.index} 
                     value={this.props.value}
+                    data-label={this.props.label}
                     onChange={(e) => this.props.handleCheck(e)}
                 />
                 <label htmlFor={"rcl-cb-"+this.props.index}>{this.props.label}</label>
@@ -31,14 +32,18 @@ class RemoteChecklist extends React.Component {
             data: [],
             nextUrlCall: null,
             loading: true,
-            dataSelected: props.inputValue.map(item => item.value),
+            valuesSelected: props.inputValue.map(item => item.value),
+            dataSelected: props.inputValue,
             initData: props.inputValue.map(item => item.value),
             lastScroll: 0,
             skip: 0,
             stoppedFetch: false,
+            filterValue: "",
         }
         this.listRef = React.createRef();
+        this.delayTimer = null;
         this.handleCheck = this.handleCheck.bind(this);
+        this.handleFilterChange = this.handleFilterChange.bind(this);
     }
 
     componentDidMount() {
@@ -49,7 +54,7 @@ class RemoteChecklist extends React.Component {
         if (this.state.data.length != prevState.data.length || this.state.stoppedFetch != prevState.stoppedFetch) {
             this.listRef.current.scrollTop = this.state.lastScroll;
         }
-        else if (this.state.dataSelected != prevState.dataSelected) {
+        else if (this.state.valuesSelected != prevState.valuesSelected) {
             this.props.onChange(this.state.dataSelected);
         }
     }
@@ -67,26 +72,60 @@ class RemoteChecklist extends React.Component {
 
     handleCheck(event) {
         let value = event.target.value
+        let newValuesSelected = this.state.valuesSelected.slice();
         let newDataSelected = this.state.dataSelected.slice();
-        if (newDataSelected.includes(value)) {
-            let index = newDataSelected.indexOf(value);
+        if (newValuesSelected.includes(value)) {
+            let index = newValuesSelected.indexOf(value);
+            newValuesSelected.splice(index, 1);
             newDataSelected.splice(index, 1);
             this.setState({
-                dataSelected: newDataSelected
+                valuesSelected: newValuesSelected,
+                dataSelected: newDataSelected,
             });
         }
         else {
-            newDataSelected.push(value);
+            newValuesSelected.push(value);
+            let dataItem = {};
+            dataItem[this.props.value] = value;
+            dataItem[this.props.label] = event.target.dataset.label;
+            newDataSelected.push(dataItem);
             this.setState({
-                dataSelected: newDataSelected
+                valuesSelected: newValuesSelected,
+                dataSelected: newDataSelected,
             });
         }
     }
 
-    fetchData() {
+    handleFilterChange(event) {
+        clearTimeout(this.delayTimer);
         let component = this;
-        let url = this.state.nextUrlCall == null ? this.props.url : this.state.nextUrlCall;
-        let dataPost = {}
+        let filter = event.target.value;
+        this.delayTimer = setTimeout(function () {
+            component.fetchData(filter);
+        }, 350);
+    }
+
+    fetchData(filter="") {
+        let component = this;
+        let url = this.state.nextUrlCall == null || filter != "" ? this.props.url : this.state.nextUrlCall;
+        let dataPost = {};
+        let skip;
+        let prevData;
+        if (filter != "") {
+            skip = 0;
+            prevData = [];
+            dataPost['filters'] = [
+                {
+                    'field': 'q',
+                    'operator': 3,
+                    'value': filter
+                }
+            ];
+        } else {
+            skip = this.state.skip;
+            prevData = this.state.data;
+            dataPost = this.state.filterValue != "" ? [{'field': 'q', 'operator': 3, 'value': this.state.filterValue}] : {};
+        }
         axios.post(
             url,
             dataPost,
@@ -96,18 +135,29 @@ class RemoteChecklist extends React.Component {
             }
         ).then(
             response => {
-                let nextSkip = component.state.skip + component.props.limit;
+                let nextSkip = skip + component.props.limit;
+                let filterValue = "";
+                if (filter != "") {
+                    filterValue = filter;
+                }
+                else if (component.state.filterValue != "") {
+                    filterValue = component.state.filterValue;
+                }
+                //check response
                 if (response.data.length == 0) {
                     component.setState({
+                        filterValue: filterValue,
                         stoppedFetch: true,
                         loading: false,
                     })
                 }
                 else {
                     component.setState({
-                        data: component.state.data.concat(response.data),
+                        filterValue: filterValue,
+                        data: prevData.concat(response.data),
                         nextUrlCall: component.props.url+'?skip='+nextSkip+'&limit='+component.props.limit,
                         skip: nextSkip,
+                        stoppedFetch: false,
                         loading: false,
                     })
                 }
@@ -128,6 +178,7 @@ class RemoteChecklist extends React.Component {
         let loader = loading == true ? <img src={loaderImg} alt="Loading..." style={{width: '100%', height: '100%'}}/> : null;
         return(
             <div className="rcl-container-box">
+                <input type="text" placeholder={this.props.searchInputPlaceholder} onChange={this.handleFilterChange} className={this.props.searchInputClass}/>
                 <div className="rcl-container-available">
                     <ul 
                         className="rcl-list-control" 
@@ -139,7 +190,7 @@ class RemoteChecklist extends React.Component {
                             this.props.inputValue.map((item, index) => 
                                 <ListItem
                                     handleCheck={this.handleCheck}
-                                    checked={this.state.dataSelected.includes(item.value)}
+                                    checked={this.state.valuesSelected.includes(item.value)}
                                     key={"rcl-li-sel-"+index}
                                     index={"sel-"+index}
                                     value={item.value}
@@ -151,13 +202,11 @@ class RemoteChecklist extends React.Component {
                                 if (!this.state.initData.includes(item.value))
                                     return <ListItem
                                         handleCheck={this.handleCheck}
-                                        checked={this.state.dataSelected.includes(item.value)} 
+                                        checked={this.state.valuesSelected.includes(item.value)} 
                                         key={"rcl-li-"+index} 
                                         index={index} 
                                         value={item.value} 
                                         label={item.description}/>
-                                else
-                                    return null
                             })
                         }
                         {this.state.stoppedFetch && !this.state.loading &&
@@ -171,7 +220,7 @@ class RemoteChecklist extends React.Component {
 }
 
 function defaultOnChange(event) {
-    console.log(event.length);
+    console.log(event);
 }
 
 RemoteChecklist.propTypes = {
@@ -181,6 +230,8 @@ RemoteChecklist.propTypes = {
     url: PropTypes.string.isRequired,
     onChange: PropTypes.func,
     noDataMessage: PropTypes.string,
+    searchInputClass: PropTypes.string,
+    searchInputPlaceholder: PropTypes.string,
 }
 RemoteChecklist.defaultProps = {
     label: "description",
@@ -188,6 +239,8 @@ RemoteChecklist.defaultProps = {
     onChange: defaultOnChange,
     inputValue: [],
     noDataMessage: "No more data to fetch!",
+    searchInputClass: "rcl-search-input",
+    searchInputPlaceholder: "Search...",
 }
 
 export default RemoteChecklist;
