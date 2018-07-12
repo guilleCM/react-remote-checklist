@@ -2,6 +2,7 @@ import React from 'react';
 import PropTypes from "prop-types";
 import axios from "axios";
 import './styles.css';
+import loaderImg from './images/spinner.svg';
 
 class ListItem extends React.Component {
     render() {
@@ -124,7 +125,7 @@ class RemoteChecklist extends React.Component {
 
     render() {
         const loading = this.state.loading;
-        let loader = loading == true ? <img src="./assets/spinner.svg" alt="Loading..." style={{width: '100%', height: '100%'}}/> : null;
+        let loader = loading == true ? <img src={loaderImg} alt="Loading..." style={{width: '100%', height: '100%'}}/> : null;
         return(
             <div className="rcl-container-box">
                 <div className="rcl-container-available">
